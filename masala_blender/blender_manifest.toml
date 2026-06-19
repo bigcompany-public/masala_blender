@@ -41,6 +41,10 @@ license = [
 # # https://docs.blender.org/manual/en/dev/advanced/extensions/python_wheels.html
 wheels = [
   "./wheels/lucent_codex-0.0.2-py3-none-any.whl",
+  "./wheels/qtawesome-1.4.2-py3-none-any.whl",
+  "./wheels/nodegraphqt-0.6.44-py3-none-any.whl",
+  "./wheels/QtPy-2.4.3-py3-none-any.whl",
+  "./wheels/pyside6-6.11.1-cp310-abi3-win_amd64.whl",
 ]
 
 # # Optional: add-ons can list which resources they will require:
