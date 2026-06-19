@@ -1,7 +1,6 @@
 import bpy
 
-panel_scale_x = 1.3
-panel_scale_y = 1.3
+panel_scale_y = 1.5
 
 
 class MASALA_PT_mainPanel(bpy.types.Panel):
@@ -16,7 +15,6 @@ class MASALA_PT_mainPanel(bpy.types.Panel):
     def draw(self, context: bpy.types.Context):
         layout = self.layout
         assert isinstance(layout, bpy.types.UILayout)
-        layout.scale_x = panel_scale_x
         layout.scale_y = panel_scale_y
         row = layout.row()
         row.operator("masala.preftest")
