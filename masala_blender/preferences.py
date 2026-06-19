@@ -7,10 +7,7 @@ class MasalaPreferences(AddonPreferences):
     assert isinstance(_package_name, str)
     bl_idname = _package_name
 
-    filepath: StringProperty(
-        name="Config Path",
-        subtype="FILE_PATH",
-    )
+    filepath: StringProperty(name="Config Path", subtype="FILE_PATH", default="hello world")
 
     def draw(self, context: Context):
         layout = self.layout
