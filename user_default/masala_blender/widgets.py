@@ -1,16 +1,12 @@
 import sys
 
+from masala.example.function_node_registry import function_node_descriptions
+from masala.example.registry import registry
+from masala.nodegraph import AssemblerGraph
 from qtpy.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 
 
 class TestWidget(QWidget):
-    """
-    This class represents a container widget for the subwidget to be inserted
-    into.
-    It works as a singleton, so the widget can be refreshed instead of creating
-    multiple instances of the same widget
-    """
-
     app = QApplication.instance() or QApplication(sys.argv)
 
     def __init__(self):
@@ -22,6 +18,9 @@ class TestWidget(QWidget):
         layout = QVBoxLayout(self)
         label = QLabel("Hello World")
         layout.addWidget(label)
+
+        graph_widget = AssemblerGraph(registry, function_node_descriptions)
+        layout.addWidget(graph_widget.widget)
 
     def setup_signals(self):
         pass
