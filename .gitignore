@@ -222,5 +222,6 @@ sandbox.py
 
 # Others
 .excalidraw
+.local
 masala/
 blender_vscode_development/

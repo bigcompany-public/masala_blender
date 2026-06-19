@@ -7,4 +7,13 @@ authors = [
     { name = "Tristan Languebien", email = "tristan.languebien@bigcompany.fr" }
 ]
 requires-python = "==3.13.9"
-dependencies = ["fake-bpy-module-latest"]
+dependencies = [
+    "fake-bpy-module-latest",
+    "lucent-codex",
+    "PySide6",
+    "QtPy",
+    "QtAwesome",
+    "NodeGraphQt",
+    "setuptools",
+    "pip>=26.0.1"
+]
