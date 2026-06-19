@@ -20,7 +20,7 @@ class TestWidget(QWidget):
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        label = QLabel("Hello")
+        label = QLabel("Hello World")
         layout.addWidget(label)
 
     def setup_signals(self):

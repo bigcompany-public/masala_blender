@@ -21,6 +21,8 @@ class MASALA_PT_mainPanel(bpy.types.Panel):
         row = layout.row()
         row.operator("masala.preftest")
         row = layout.row()
+        row.operator("masala.reload")
+        row = layout.row()
         row.operator("masala.exporter")
         row = layout.row()
         row.operator("masala.assembler")

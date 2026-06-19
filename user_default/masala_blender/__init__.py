@@ -1,7 +1,7 @@
 import bpy
 
 from .gui import MASALA_PT_mainPanel
-from .operators import MASALA_OT_Assembler, MASALA_OT_Exporter, MASALA_OT_PreferenceTest
+from .operators import MASALA_OT_Assembler, MASALA_OT_Exporter, MASALA_OT_PreferenceTest, MASALA_OT_Reload
 from .preferences import MasalaPreferences
 
 bl_info = {
@@ -18,8 +18,10 @@ bl_info = {
 _classes = (
     MASALA_PT_mainPanel,
     MASALA_OT_Exporter,
-    MASALA_OT_PreferenceTest,
     MasalaPreferences,
+    MASALA_OT_PreferenceTest,
+    MASALA_OT_Reload,
+    MASALA_OT_Assembler,
 )
 
 
