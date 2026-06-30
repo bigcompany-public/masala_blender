@@ -24,7 +24,7 @@ class MASALA_OT_Exporter(bpy.types.Operator):
     bl_description = "Opens the Masala Exporter Tool"
 
     def execute(self, context):
-        self.widget = show_exporter_widget()
+        self.widget = show_exporter_widget(context)
         return {"RUNNING_MODAL"}
 
 
