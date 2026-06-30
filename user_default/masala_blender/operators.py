@@ -4,7 +4,7 @@ from pathlib import Path
 
 import bpy
 
-from .widgets import TestWidget
+from .widgets import show_exporter_widget
 
 
 class MASALA_OT_PreferenceTest(bpy.types.Operator):
@@ -24,8 +24,7 @@ class MASALA_OT_Exporter(bpy.types.Operator):
     bl_description = "Opens the Masala Exporter Tool"
 
     def execute(self, context):
-        self.widget = TestWidget()
-        self.widget.show()
+        self.widget = show_exporter_widget()
         return {"RUNNING_MODAL"}
 
 
@@ -34,10 +33,9 @@ class MASALA_OT_Assembler(bpy.types.Operator):
     bl_label = "Assembler"
 
     def execute(self, context):
-        preferences = context.preferences
-        addon_prefs = preferences.addons[__package__].preferences
-        self.report({"INFO"}, f"Preference value: {addon_prefs.filepath}")
-        return {"FINISHED"}
+        self.widget = TestWidget()
+        self.widget.show()
+        return {"RUNNING_MODAL"}
 
 
 class MASALA_OT_Reload(bpy.types.Operator):
