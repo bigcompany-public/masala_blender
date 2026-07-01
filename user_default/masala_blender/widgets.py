@@ -6,12 +6,11 @@ import bpy
 from masala.api import Exporter
 from masala.exporter import MasalaExporterWidget
 from masala.gui.container import ContainerWidget
+from masala.gui.utils import get_masala_exporter_icon
 from qtpy.QtWidgets import QApplication
 
 
 def show_exporter_widget(context: bpy.types.Context) -> ContainerWidget:
-    sys.path.append(r"D:\gitWorkspace\masala_blender\user_default")
-
     # Get exporters config path from preferences
     preferences = context.preferences
     addon_prefs = preferences.addons[__package__].preferences
@@ -34,6 +33,6 @@ def show_exporter_widget(context: bpy.types.Context) -> ContainerWidget:
     # Open Widget
     app = QApplication.instance() or QApplication(sys.argv)
     widget = MasalaExporterWidget(exporters)
-    container = ContainerWidget(widget=widget, title="Masala Exporter")
+    container = ContainerWidget(widget=widget, title="Masala Exporter", icon=get_masala_exporter_icon())
     container.show()
     return container
