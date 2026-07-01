@@ -9,8 +9,8 @@ from typing import Optional
 import bpy
 from bpy.types import Collection, Material, Mesh, Object
 from masala.api import Exporter
-
-from ..assetblocks.materials import materials
+from masala.example.asset_blocks.materials import materials
+from masala.example.codex import codex
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
@@ -47,6 +47,7 @@ class MaterialExporter:
         output_path: str | Path,
     ) -> None:
         self.current_path = get_path()
+        self.fields = codex.get_fields(self.current_path)
         self.temp_dir = self.current_path.parent / "temp"
         self.temp_blend_path = self.temp_dir / self.current_path.name
         self.material_blend_path = Path(output_path)
@@ -57,36 +58,37 @@ class MaterialExporter:
 
     def run(self) -> None:
         """Execute the full export pipeline."""
-        log.info("Saving temporary scene")
+        print("Saving temporary scene")
         self.save_temp_scene()
 
-        log.info("Packing external resources")
+        print("Packing external resources")
         self.pack_resources()
 
-        log.info("Collecting mesh objects")
+        print("Collecting mesh objects")
         self._mesh_objects = self.collect_mesh_objects()
-        log.info("  Found %d mesh object(s).", len(self._mesh_objects))
+        print("Found %d mesh object(s).", len(self._mesh_objects))
 
-        log.info("Listing materials")
+        print("Listing materials")
         self._materials = self.list_materials(self._mesh_objects)
-        log.info("  Found %d unique material(s).", len(self._materials))
+        print("Found %d unique material(s).", len(self._materials))
 
-        log.info("Exporting materials")
+        print("Exporting materials")
         self.export_materials(self._materials)
 
-        log.info("Building mesh↔material manifest")
+        print("Building mesh↔material manifest")
         self._mappings = self.build_mappings(self._mesh_objects)
         self.write_manifest(self._mappings)
 
-        log.info("Done.  Outputs written to: %s", self.output_dir)
+        print("Done.  Outputs written to: %s", self.output_dir)
 
     def save_temp_scene(self) -> None:
         """
         Save the current .blend file to a temporary path so the original is
         never overwritten and subsequent operations work on a known-good copy.
         """
+        self.temp_blend_path.parent.mkdir(exist_ok=True, parents=True)
         bpy.ops.wm.save_as_mainfile(filepath=str(self.temp_blend_path), copy=True)
-        log.info("  Temporary scene saved → %s", self.temp_blend_path)
+        print("Temporary scene saved → %s", self.temp_blend_path)
 
     def pack_resources(self) -> None:
         """
@@ -94,7 +96,7 @@ class MaterialExporter:
         the .blend data-block so the file is self-contained.
         """
         bpy.ops.file.pack_all()
-        log.info("  All external resources packed.")
+        print("All external resources packed.")
 
     def collect_mesh_objects(self) -> list[Object]:
         """
@@ -136,7 +138,7 @@ class MaterialExporter:
 
         materials.sort(key=lambda m: m.name)
         for mat in materials:
-            log.info("  Material: %s", mat.name)
+            print("Material: %s", mat.name)
         return materials
 
     def export_materials(self, materials: list[Material]) -> None:
@@ -148,7 +150,7 @@ class MaterialExporter:
         File → Append → <exported_materials.blend> → Material → <name>.
         """
         if not materials:
-            log.warning("  No materials to export – skipping.")
+            log.warning("No materials to export – skipping.")
             return
 
         mat_names = {m.name for m in materials}
@@ -162,8 +164,8 @@ class MaterialExporter:
             path_remap="RELATIVE",
             fake_user=True,
         )
-        log.info(
-            "  %d material(s) exported → %s",
+        print(
+            "%d material(s) exported → %s",
             len(data_blocks),
             self.material_blend_path,
         )
@@ -238,7 +240,7 @@ class MaterialExporter:
         payload = [asdict(m) for m in mappings]
         with self.manifest_path.open("w", encoding="utf-8") as fp:
             json.dump(payload, fp, indent=2, ensure_ascii=False)
-        log.info("  Manifest written → %s", self.manifest_path)
+        print("Manifest written → %s", self.manifest_path)
 
     @staticmethod
     def _find_collection(
@@ -310,7 +312,7 @@ def get_path() -> Path:
 
 
 def export(path: Path):
-    exporter = MaterialExporter()
+    exporter = MaterialExporter(path)
     exporter.run()
 
 

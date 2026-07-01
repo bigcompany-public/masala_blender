@@ -1,9 +1,8 @@
 from masala.api import AssetBlockRegistry
+from masala.example.asset_blocks.materials import materials
+from masala.example.asset_blocks.rig import rig
+from masala.example.asset_blocks.staticmesh import static_mesh
 from masala.example.codex import codex
-
-from .assetblocks.materials import materials
-from .assetblocks.rig import rig
-from .assetblocks.staticmesh import static_mesh
 
 assetblocks = [
     static_mesh,
