@@ -7,6 +7,29 @@ import bpy
 from .widgets import show_exporter_widget
 
 
+def reload_modules():
+    root_path = Path(__file__).parent
+
+    modules_to_reload = []
+    for module_name, module in list(sys.modules.items()):
+        # Skip modules without file paths (built-ins, some packages like pywin32)
+        module_file = getattr(module, "__file__", None)
+        if not module_file:
+            continue
+
+        module_path = Path(module_file).as_posix()
+        if module_path.startswith(root_path.as_posix()) or "/masala/" in module_path:
+            modules_to_reload.append((module_name, module))
+            continue
+
+    for module_name, module in modules_to_reload:
+        try:
+            print(f"Reloading {module_name}")
+            importlib.reload(module)
+        except Exception as err:
+            print(f"Failed to reload {module_name} ({err.__class__.__name__}: {err})")
+
+
 class MASALA_OT_PreferenceTest(bpy.types.Operator):
     bl_idname = "masala.preftest"
     bl_label = "Preference Test"
@@ -44,26 +67,18 @@ class MASALA_OT_Reload(bpy.types.Operator):
 
     def execute(self, context):
         self.report({"INFO"}, "RELOAD")
+        reload_modules()
+        return {"FINISHED"}
 
-        root_path = Path(__file__).parent
 
-        modules_to_reload = []
-        for module_name, module in list(sys.modules.items()):
-            # Skip modules without file paths (built-ins, some packages like pywin32)
-            module_file = getattr(module, "__file__", None)
-            if not module_file:
-                continue
+class MASALA_OT_Sandbox(bpy.types.Operator):
+    bl_idname = "masala.sandbox"
+    bl_label = "Sandbox"
 
-            module_path = Path(module_file).as_posix()
-            if module_path.startswith(root_path.as_posix()) or "/masala/" in module_path:
-                modules_to_reload.append((module_name, module))
-                continue
+    def execute(self, context):
+        self.report({"INFO"}, "Running Sandbox")
+        reload_modules()
+        from .sandbox import main
 
-        for module_name, module in modules_to_reload:
-            try:
-                print(f"Reloading {module_name}")
-                importlib.reload(module)
-            except Exception as err:
-                print(f"Failed to reload {module_name} ({err.__class__.__name__}: {err})")
-
+        main()
         return {"FINISHED"}

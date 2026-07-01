@@ -26,6 +26,8 @@ class MASALA_PT_mainPanel(bpy.types.Panel):
         assert isinstance(layout, bpy.types.UILayout)
         layout.scale_y = panel_scale_y
         row = layout.row()
+        row.operator("masala.sandbox")
+        row = layout.row()
         row.operator("masala.preftest")
         row = layout.row()
         row.operator("masala.reload")

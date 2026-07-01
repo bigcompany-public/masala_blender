@@ -1,6 +1,12 @@
 import bpy
 
-from .operators import MASALA_OT_Assembler, MASALA_OT_Exporter, MASALA_OT_PreferenceTest, MASALA_OT_Reload
+from .operators import (
+    MASALA_OT_Assembler,
+    MASALA_OT_Exporter,
+    MASALA_OT_PreferenceTest,
+    MASALA_OT_Reload,
+    MASALA_OT_Sandbox,
+)
 from .panels import MASALA_PT_mainPanel
 from .preferences import MasalaPreferences
 
@@ -22,6 +28,7 @@ _classes = (
     MASALA_OT_PreferenceTest,
     MASALA_OT_Reload,
     MASALA_OT_Assembler,
+    MASALA_OT_Sandbox,
 )
 
 
