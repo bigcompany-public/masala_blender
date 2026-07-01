@@ -5,7 +5,7 @@ expressed as filesystem-like paths (e.g. "SceneName/CollectionA/CollectionB").
 
 import logging
 from pathlib import Path
-from typing import List, Union
+from typing import Any, List, Union
 
 import bpy
 from bpy.types import Collection, Object, Scene
@@ -13,7 +13,7 @@ from bpy.types import Collection, Object, Scene
 logger = logging.getLogger(__name__)
 
 
-def create_hierarchy(path: Union[str, Path]) -> Collection:
+def create_hierarchy(path: str | Path) -> Collection:
     """
     Create a collection hierarchy matching the given path, creating any
     missing collections along the way. Returns the deepest (last) collection.
@@ -53,13 +53,7 @@ def create_hierarchy(path: Union[str, Path]) -> Collection:
     return current_collection
 
 
-def get_hierarchy(
-    obj: Union[Object, Collection], as_path: bool = True
-) -> Union[Path, List[Union[Scene, Collection, Object]]]:
-    """
-    Return the hierarchy from the scene down to `obj`, as a Path
-    (default) or as a list of Blender data objects if `as_path` is False.
-    """
+def get_hierarchy_as_objects(obj: Any) -> List[Union[Scene, Collection, Object]]:
     if isinstance(obj, Collection):
         chain: List[Union[Scene, Collection, Object]] = [obj]
     else:
@@ -81,8 +75,12 @@ def get_hierarchy(
 
     # Replace the root collection with its owning scene.
     chain[0] = scene_collections[chain[0]]
+    return chain
 
-    return _parts_to_path(chain) if as_path else chain
+
+def get_hierarchy_as_path(obj: Any) -> Path:
+    chain = get_hierarchy_as_objects(obj)
+    return _parts_to_path(chain)
 
 
 def _parts_to_path(parts: List[Union[Scene, Collection, Object]]) -> Path:
