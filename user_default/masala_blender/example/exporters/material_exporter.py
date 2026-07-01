@@ -12,6 +12,8 @@ from masala.api import Exporter
 from masala.example.asset_blocks.materials import materials
 from masala.example.codex import codex
 
+from masala_blender.hierarchy import get_from_hierarchy, get_hierarchy_as_path
+
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 
@@ -50,42 +52,29 @@ class MaterialExporter:
         self.fields = codex.get_fields(self.current_path)
         self.temp_dir = self.current_path.parent / "temp"
         self.temp_blend_path = self.temp_dir / self.current_path.name
+        self.temp_manifest_path = self.temp_blend_path.with_suffix(".json")
         self.material_blend_path = Path(output_path)
-
         self._mesh_objects: list[Object] = []
         self._materials: list[Material] = []
         self._mappings: list[MeshMaterialMapping] = []
 
     def run(self) -> None:
         """Execute the full export pipeline."""
-        print("Saving temporary scene")
-        self.save_temp_scene()
-
-        print("Packing external resources")
-        self.pack_resources()
-
-        print("Collecting mesh objects")
+        # self.save_temp_scene()
+        # self.pack_resources()
         self._mesh_objects = self.collect_mesh_objects()
-        print("Found %d mesh object(s).", len(self._mesh_objects))
-
-        print("Listing materials")
         self._materials = self.list_materials(self._mesh_objects)
-        print("Found %d unique material(s).", len(self._materials))
-
-        print("Exporting materials")
         self.export_materials(self._materials)
-
-        print("Building mesh↔material manifest")
         self._mappings = self.build_mappings(self._mesh_objects)
         self.write_manifest(self._mappings)
-
-        print("Done.  Outputs written to: %s", self.output_dir)
+        # print("Done")
 
     def save_temp_scene(self) -> None:
         """
         Save the current .blend file to a temporary path so the original is
         never overwritten and subsequent operations work on a known-good copy.
         """
+        print("Saving temporary scene")
         self.temp_blend_path.parent.mkdir(exist_ok=True, parents=True)
         bpy.ops.wm.save_as_mainfile(filepath=str(self.temp_blend_path), copy=True)
         print("Temporary scene saved → %s", self.temp_blend_path)
@@ -95,30 +84,26 @@ class MaterialExporter:
         Pack all external resources (textures, fonts, sounds, volumes) into
         the .blend data-block so the file is self-contained.
         """
+        print("Packing external resources")
         bpy.ops.file.pack_all()
         print("All external resources packed.")
 
     def collect_mesh_objects(self) -> list[Object]:
         """
-        Return every MESH object that lives inside
-        ``myAsset/staticMesh`` (or any of its sub-collections).
+        Return every MESH object that lives inside the static mesh collection
 
         The search is name-based: first locate the top-level collection whose
         name starts with ``ROOT_COLLECTION``, then find the child collection
         whose name starts with ``STATIC_MESH_COLLECTION``.
         """
-        root = self._find_collection(bpy.context.scene.collection, self.ROOT_COLLECTION)
-        if root is None:
-            raise ValueError(f"Collection '{self.ROOT_COLLECTION}' not found in the scene.")
-
-        static_mesh_col = self._find_collection(root, self.STATIC_MESH_COLLECTION)
-        if static_mesh_col is None:
-            raise ValueError(
-                f"Sub-collection '{self.STATIC_MESH_COLLECTION}' not found under '{self.ROOT_COLLECTION}'."
-            )
+        print("Collecting mesh objects")
+        mesh_collection_path = codex.convs.blender_asset_meshes_collection.format(self.fields)
+        mesh_collection = get_from_hierarchy(mesh_collection_path)
+        assert isinstance(mesh_collection, Collection)
 
         mesh_objects: list[Object] = []
-        self._collect_meshes_recursive(static_mesh_col, mesh_objects)
+        self._collect_meshes_recursive(mesh_collection, mesh_objects)
+        print(f"Found {len(mesh_objects)} mesh object(s).")
         return mesh_objects
 
     def list_materials(self, mesh_objects: list[Object]) -> list[Material]:
@@ -126,6 +111,7 @@ class MaterialExporter:
         Return the deduplicated, name-sorted list of all materials that are
         referenced by at least one material slot across the given mesh objects.
         """
+        print("Listing materials")
         seen: set[str] = set()
         materials: list[Material] = []
 
@@ -138,7 +124,8 @@ class MaterialExporter:
 
         materials.sort(key=lambda m: m.name)
         for mat in materials:
-            print("Material: %s", mat.name)
+            print(f"Material: {mat.name}")
+        print(f"Found {len(materials)} unique material(s).")
         return materials
 
     def export_materials(self, materials: list[Material]) -> None:
@@ -149,8 +136,9 @@ class MaterialExporter:
         The file can later be appended/linked into other projects via
         File → Append → <exported_materials.blend> → Material → <name>.
         """
+        print("Exporting materials")
         if not materials:
-            log.warning("No materials to export – skipping.")
+            log.warning("No materials to export. skipping.")
             return
 
         mat_names = {m.name for m in materials}
@@ -164,11 +152,7 @@ class MaterialExporter:
             path_remap="RELATIVE",
             fake_user=True,
         )
-        print(
-            "%d material(s) exported → %s",
-            len(data_blocks),
-            self.material_blend_path,
-        )
+        print(f"{len(data_blocks)} material(s) exported → {self.material_blend_path}")
 
     def build_mappings(self, mesh_objects: list[Object]) -> list[MeshMaterialMapping]:
         """
@@ -180,18 +164,19 @@ class MaterialExporter:
         If the mesh uses the same material for every face (no per-face
         assignment) the ``face_indices`` list is left empty.
         """
+        print("Building mesh↔material manifest")
         mappings: list[MeshMaterialMapping] = []
 
         for obj in mesh_objects:
             mesh: Mesh = obj.data  # type: ignore[assignment]
-            collection_path = self._get_collection_path(obj)
+            collection_path = get_hierarchy_as_path(mesh)
 
             # Build per-slot face-index lists
             slot_faces: dict[int, list[int]] = {i: [] for i in range(len(obj.material_slots))}
             for poly_index, poly in enumerate(mesh.polygons):
                 slot_faces[poly.material_index].append(poly_index)
 
-            # Determine whether all faces share the same slot (no real selection)
+            # Determine whether all faces share the same slot
             all_same = len(slot_faces) <= 1
 
             slots: list[MaterialSlotInfo] = []
@@ -238,9 +223,11 @@ class MaterialExporter:
             }
         """
         payload = [asdict(m) for m in mappings]
-        with self.manifest_path.open("w", encoding="utf-8") as fp:
-            json.dump(payload, fp, indent=2, ensure_ascii=False)
-        print("Manifest written → %s", self.manifest_path)
+        self.temp_manifest_path.write_text(json.dumps(payload, indent=4))
+
+        print(
+            f"Manifest written → {self.temp_manifest_path}",
+        )
 
     @staticmethod
     def _find_collection(
@@ -272,37 +259,6 @@ class MaterialExporter:
         for child in collection.children:
             MaterialExporter._collect_meshes_recursive(child, result)
 
-    @staticmethod
-    def _get_collection_path(obj: Object) -> str:
-        """
-        Return a slash-separated path of the collection hierarchy that
-        directly contains *obj*, e.g. ``"myAsset/staticMesh/props"``.
-        Falls back to the object name if no collection is found.
-        """
-        for col in bpy.data.collections:
-            if obj.name in col.objects:
-                # Attempt to build the ancestry path
-                ancestors: list[str] = [col.name]
-                parent_col = MaterialExporter._find_parent_collection(col)
-                while parent_col is not None:
-                    ancestors.insert(0, parent_col.name)
-                    parent_col = MaterialExporter._find_parent_collection(parent_col)
-                return "/".join(ancestors)
-        return obj.name  # fallback
-
-    @staticmethod
-    def _find_parent_collection(
-        target: Collection,
-    ) -> Optional[Collection]:
-        """Return the immediate parent collection of *target*, or ``None``."""
-        for col in bpy.data.collections:
-            if target.name in [c.name for c in col.children]:
-                return col
-        # Also check the scene master collection
-        if target.name in [c.name for c in bpy.context.scene.collection.children]:
-            return None  # scene root has no collection parent
-        return None
-
 
 def get_path() -> Path:
     path = bpy.data.filepath
@@ -316,7 +272,7 @@ def export(path: Path):
     exporter.run()
 
 
-def meta() -> dict:
+def meta(result: dict | None = None) -> dict:
     return {"hello": "world"}
 
 
