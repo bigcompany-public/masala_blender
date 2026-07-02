@@ -9,7 +9,7 @@ from typing import Optional
 import bpy
 from bpy.types import Collection, Material, Mesh, Object
 from masala.api import Exporter
-from masala.example.asset_blocks.materials import materials
+from masala.example.assetblocks_dir.materials import materials
 from masala.example.codex import codex
 
 from masala_blender.hierarchy import get_from_hierarchy, get_hierarchy_as_path
