@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import json
 import logging
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import bpy
 from bpy.types import Collection, Material, Mesh, Object
@@ -12,30 +9,10 @@ from masala.api import Exporter
 from masala.example.assetblocks_dir.materials import materials
 from masala.example.codex import codex
 
-from masala_blender.hierarchy import get_from_hierarchy, get_hierarchy_as_path
+from masala_blender.hierarchy import get_from_hierarchy
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
-
-
-@dataclass
-class MaterialSlotInfo:
-    """Describes one material slot on a mesh object."""
-
-    slot_index: int
-    material_name: Optional[str]
-    # Face indices that use this slot (empty = slot applies to whole mesh)
-    face_indices: list[int] = field(default_factory=list)
-
-
-@dataclass
-class MeshMaterialMapping:
-    """Full mapping for a single mesh object."""
-
-    object_name: str
-    mesh_data_name: str
-    collection_path: str
-    material_slots: list[MaterialSlotInfo] = field(default_factory=list)
 
 
 class MaterialExporter:
@@ -54,20 +31,71 @@ class MaterialExporter:
         self.temp_blend_path = self.temp_dir / self.current_path.name
         self.temp_manifest_path = self.temp_blend_path.with_suffix(".json")
         self.material_blend_path = Path(output_path)
-        self._mesh_objects: list[Object] = []
-        self._materials: list[Material] = []
-        self._mappings: list[MeshMaterialMapping] = []
+        self.material_data: list[dict] = []
+        self.materials: list[Material]
 
-    def run(self) -> None:
+    def run(self) -> list[dict]:
         """Execute the full export pipeline."""
-        # self.save_temp_scene()
-        # self.pack_resources()
-        self._mesh_objects = self.collect_mesh_objects()
-        self._materials = self.list_materials(self._mesh_objects)
-        self.export_materials(self._materials)
-        self._mappings = self.build_mappings(self._mesh_objects)
-        self.write_manifest(self._mappings)
-        # print("Done")
+        self.save_temp_scene()
+        self.pack_resources()
+        self.extract_mesh_to_material_data()
+        self.export_materials()
+        return self.material_data
+
+    def extract_mesh_to_material_data(self):
+        mesh_collection_path = Path(codex.convs.blender_asset_meshes_collection.format(self.fields))
+        mesh_collection = get_from_hierarchy(mesh_collection_path)
+        assert isinstance(mesh_collection, Collection)
+
+        material_data: list[dict] = []
+        materials: list[Material] = []
+        self._recursively_explore_hierarchy(mesh_collection, mesh_collection_path, material_data, materials)
+        self.material_data = sorted(material_data, key=lambda data: data["mesh_path"])
+        self.materials = sorted(materials, key=lambda mtl: mtl.name)
+
+    def _recursively_explore_hierarchy(
+        self, item: Collection | Object, current_path: Path, material_data: list, materials: list
+    ):
+        # If Collection, dig deeper into the collections child collections and child objects
+        if isinstance(item, Collection):
+            for obj in item.objects:
+                self._recursively_explore_hierarchy(obj, current_path.joinpath(obj.name), material_data, materials)
+            for col in item.children:
+                self._recursively_explore_hierarchy(col, current_path.joinpath(col.name), material_data, materials)
+
+        # if object, extract data from the mesh's material slots
+        elif isinstance(item, Object):
+            mesh_data = {}
+
+            # Get mesh
+            obj = item
+            mesh = item.data
+            assert isinstance(mesh, Mesh)
+            path = current_path.joinpath(mesh.name)
+            mesh_data["mesh_path"] = path.as_posix()
+            mesh_data["material_slots"] = []
+
+            # Iterate over material slots
+            for mtl_slot in obj.material_slots:
+                if not mtl_slot.material:
+                    continue
+                mtl_slot_data = {}
+                mtl_slot_data["index"] = mtl_slot.slot_index
+                mtl_slot_data["material"] = mtl_slot.material.name
+                mtl_slot_data["polygons"] = []
+
+                # Register material
+                if mtl_slot.material not in materials:
+                    materials.append(mtl_slot.material)
+
+                # Iterate over polygons
+                for polygon in mesh.polygons:
+                    if polygon.material_index == mtl_slot.slot_index:
+                        mtl_slot_data["polygons"].append(polygon.index)
+
+                mesh_data["material_slots"].append(mtl_slot_data)
+
+            material_data.append(mesh_data)
 
     def save_temp_scene(self) -> None:
         """
@@ -88,47 +116,7 @@ class MaterialExporter:
         bpy.ops.file.pack_all()
         print("All external resources packed.")
 
-    def collect_mesh_objects(self) -> list[Object]:
-        """
-        Return every MESH object that lives inside the static mesh collection
-
-        The search is name-based: first locate the top-level collection whose
-        name starts with ``ROOT_COLLECTION``, then find the child collection
-        whose name starts with ``STATIC_MESH_COLLECTION``.
-        """
-        print("Collecting mesh objects")
-        mesh_collection_path = codex.convs.blender_asset_meshes_collection.format(self.fields)
-        mesh_collection = get_from_hierarchy(mesh_collection_path)
-        assert isinstance(mesh_collection, Collection)
-
-        mesh_objects: list[Object] = []
-        self._collect_meshes_recursive(mesh_collection, mesh_objects)
-        print(f"Found {len(mesh_objects)} mesh object(s).")
-        return mesh_objects
-
-    def list_materials(self, mesh_objects: list[Object]) -> list[Material]:
-        """
-        Return the deduplicated, name-sorted list of all materials that are
-        referenced by at least one material slot across the given mesh objects.
-        """
-        print("Listing materials")
-        seen: set[str] = set()
-        materials: list[Material] = []
-
-        for obj in mesh_objects:
-            for slot in obj.material_slots:
-                mat = slot.material
-                if mat is not None and mat.name not in seen:
-                    seen.add(mat.name)
-                    materials.append(mat)
-
-        materials.sort(key=lambda m: m.name)
-        for mat in materials:
-            print(f"Material: {mat.name}")
-        print(f"Found {len(materials)} unique material(s).")
-        return materials
-
-    def export_materials(self, materials: list[Material]) -> None:
+    def export_materials(self) -> None:
         """
         Write a .blend library file that contains ONLY the given materials
         (no meshes, objects, scenes, cameras, lights).
@@ -137,127 +125,17 @@ class MaterialExporter:
         File → Append → <exported_materials.blend> → Material → <name>.
         """
         print("Exporting materials")
-        if not materials:
+        if not self.materials:
             log.warning("No materials to export. skipping.")
             return
 
-        mat_names = {m.name for m in materials}
-
-        # bpy.data.libraries.write expects a set of data-block references.
-        data_blocks: set[Material] = {m for m in bpy.data.materials if m.name in mat_names}
-
         bpy.data.libraries.write(
             str(self.material_blend_path),
-            data_blocks,
+            set(self.materials),
             path_remap="RELATIVE",
             fake_user=True,
         )
-        print(f"{len(data_blocks)} material(s) exported → {self.material_blend_path}")
-
-    def build_mappings(self, mesh_objects: list[Object]) -> list[MeshMaterialMapping]:
-        """
-        For each mesh object, build a :class:`MeshMaterialMapping` that records:
-
-        * which material occupies each slot
-        * which polygon (face) indices are assigned to each slot
-
-        If the mesh uses the same material for every face (no per-face
-        assignment) the ``face_indices`` list is left empty.
-        """
-        print("Building mesh↔material manifest")
-        mappings: list[MeshMaterialMapping] = []
-
-        for obj in mesh_objects:
-            mesh: Mesh = obj.data  # type: ignore[assignment]
-            collection_path = get_hierarchy_as_path(mesh)
-
-            # Build per-slot face-index lists
-            slot_faces: dict[int, list[int]] = {i: [] for i in range(len(obj.material_slots))}
-            for poly_index, poly in enumerate(mesh.polygons):
-                slot_faces[poly.material_index].append(poly_index)
-
-            # Determine whether all faces share the same slot
-            all_same = len(slot_faces) <= 1
-
-            slots: list[MaterialSlotInfo] = []
-            for slot_index, slot in enumerate(obj.material_slots):
-                face_list = [] if all_same else slot_faces.get(slot_index, [])
-                slots.append(
-                    MaterialSlotInfo(
-                        slot_index=slot_index,
-                        material_name=slot.material.name if slot.material else None,
-                        face_indices=face_list,
-                    )
-                )
-
-            mappings.append(
-                MeshMaterialMapping(
-                    object_name=obj.name,
-                    mesh_data_name=mesh.name,
-                    collection_path=collection_path,
-                    material_slots=slots,
-                )
-            )
-
-        return mappings
-
-    def write_manifest(self, mappings: list[MeshMaterialMapping]) -> None:
-        """
-        Serialise the mesh↔material mappings to a pretty-printed JSON file.
-
-        Schema (per mesh entry):
-        ::
-
-            {
-              "object_name": "Cube.001",
-              "mesh_data_name": "Cube",
-              "collection_path": "myAsset/staticMesh",
-              "material_slots": [
-                {
-                  "slot_index": 0,
-                  "material_name": "M_Wood",
-                  "face_indices": [0, 1, 4, 5]   // empty = whole mesh
-                },
-                ...
-              ]
-            }
-        """
-        payload = [asdict(m) for m in mappings]
-        self.temp_manifest_path.write_text(json.dumps(payload, indent=4))
-
-        print(
-            f"Manifest written → {self.temp_manifest_path}",
-        )
-
-    @staticmethod
-    def _find_collection(
-        parent: Collection,
-        name_prefix: str,
-    ) -> Optional[Collection]:
-        """
-        Breadth-first search for the first collection whose name matches
-        *name_prefix* exactly or starts with it (case-sensitive).
-        Returns ``None`` if nothing is found.
-        """
-        queue: list[Collection] = list(parent.children)
-        while queue:
-            col = queue.pop(0)
-            if col.name == name_prefix or col.name.startswith(name_prefix):
-                return col
-            queue.extend(col.children)
-        return None
-
-    @staticmethod
-    def _collect_meshes_recursive(
-        collection: Collection,
-        result: list[Object],
-    ) -> None:
-        """Append all MESH objects from *collection* and its descendants."""
-        for obj in collection.objects:
-            if obj.type == "MESH":
-                result.append(obj)
-        for child in collection.children:
-            MaterialExporter._collect_meshes_recursive(child, result)
+        print(f"{len(self.materials)} material(s) exported → {self.material_blend_path}")
 
 
 def get_path() -> Path:
@@ -267,18 +145,13 @@ def get_path() -> Path:
     return Path(path)
 
 
-def export(path: Path):
+def export(path: Path) -> dict:
     exporter = MaterialExporter(path)
-    exporter.run()
-
-
-def meta(result: dict | None = None) -> dict:
-    return {"hello": "world"}
+    return {"material_mapping": exporter.run()}
 
 
 material_exporter = Exporter(
     assetblock=materials,
     current_path_callback=get_path,
     export_callback=export,
-    metadata_callback=meta,
 )
