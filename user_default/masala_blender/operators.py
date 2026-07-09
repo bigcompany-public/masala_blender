@@ -4,7 +4,7 @@ from pathlib import Path
 
 import bpy
 
-from .widgets import show_exporter_widget
+from .widgets import show_assembler_widget, show_exporter_widget
 
 
 def reload_modules():
@@ -54,10 +54,10 @@ class MASALA_OT_Exporter(bpy.types.Operator):
 class MASALA_OT_Assembler(bpy.types.Operator):
     bl_idname = "masala.assembler"
     bl_label = "Assembler"
+    bl_description = "Opens the Masala Assembler Tool"
 
     def execute(self, context):
-        self.widget = TestWidget()
-        self.widget.show()
+        self.widget = show_assembler_widget(context)
         return {"RUNNING_MODAL"}
 
 
