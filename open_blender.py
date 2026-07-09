@@ -29,9 +29,10 @@ def main():
     command = [
         str(exe),
         "--python-use-system-env",
+        # "--factory-startup",
     ]
     # Enable masala_blender by default
-    command += ["--addons", "masala_blender"]
+    command += ["--addons", "bl_ext.user_default.masala_blender"]
 
     subprocess.Popen(
         command,
