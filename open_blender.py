@@ -15,8 +15,6 @@ def main():
     env["BLENDER_USER_EXTENSIONS"] = str(current_dir)
 
     # Set pythonpath
-    # lib_path = current_dir / ".venv/Lib/site-packages"
-    # env["PYTHONPATH"] = lib_path.as_posix()
     env["PYTHONPATH"] = r"D:\gitWorkspace\masala\src"
 
     # Open Blender with a separate console and hide console by default
