@@ -8,12 +8,19 @@ authors = [
 ]
 requires-python = "==3.13.9"
 dependencies = [
+    "masala",
+]
+
+[project.optional-dependencies]
+dev = [
     "fake-bpy-module-latest",
-    "lucent-codex",
-    "PySide6",
-    "QtPy",
-    "QtAwesome",
-    "NodeGraphQt",
-    "setuptools",
     "pip>=26.0.1"
 ]
+
+docs = [
+    "zensical",
+    "mkdocstrings-python"
+]
+
+[tool.uv.sources]
+masala = { path = "../masala", editable = true }
