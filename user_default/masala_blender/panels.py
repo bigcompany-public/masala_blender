@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -26,12 +27,12 @@ class MASALA_PT_mainPanel(bpy.types.Panel):
         assert isinstance(layout, bpy.types.UILayout)
         layout.scale_y = panel_scale_y
         row = layout.row()
-        row.operator("masala.sandbox")
-        row = layout.row()
-        row.operator("masala.preftest")
-        row = layout.row()
-        row.operator("masala.reload")
-        row = layout.row()
         row.operator("masala.exporter")
         row = layout.row()
         row.operator("masala.assembler")
+
+        if os.environ.get("MASALA_DEV") == "1":
+            row = layout.row()
+            row.operator("masala.sandbox")
+            row = layout.row()
+            row.operator("masala.reload")

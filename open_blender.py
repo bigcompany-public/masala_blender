@@ -17,6 +17,9 @@ def main():
     # Set pythonpath
     env["PYTHONPATH"] = r"D:\gitWorkspace\masala\src"
 
+    # Enable Dev Mode
+    # env["MASALA_DEV"] = "1"
+
     # Open Blender with a separate console and hide console by default
     # This must be done so blender doesn't use bluepepper's console and so "toggle system console" works as intended
     flag = subprocess.CREATE_NEW_CONSOLE
