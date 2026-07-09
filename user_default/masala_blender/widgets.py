@@ -41,5 +41,7 @@ def show_assembler_widget(context: bpy.types.Context) -> ContainerWidget:
     app = QApplication.instance() or QApplication(sys.argv)
     widget = MasalaAssemblerWidget(assetblocks, operators, recipes_path)
     container = ContainerWidget(widget=widget, title="Masala Assembler", icon=get_masala_assembler_icon())
+    container.resize(800, 500)
     container.show()
+    widget.graph_widget.reset_zoom()
     return container
