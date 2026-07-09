@@ -30,17 +30,6 @@ def reload_modules():
             print(f"Failed to reload {module_name} ({err.__class__.__name__}: {err})")
 
 
-class MASALA_OT_PreferenceTest(bpy.types.Operator):
-    bl_idname = "masala.preftest"
-    bl_label = "Preference Test"
-
-    def execute(self, context):
-        preferences = context.preferences
-        addon_prefs = preferences.addons[__package__].preferences
-        self.report({"INFO"}, f"Preference value: {addon_prefs.filepath}")
-        return {"FINISHED"}
-
-
 class MASALA_OT_Exporter(bpy.types.Operator):
     bl_idname = "masala.exporter"
     bl_label = "Exporter"

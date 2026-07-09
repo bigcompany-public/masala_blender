@@ -3,7 +3,6 @@ import bpy
 from .operators import (
     MASALA_OT_Assembler,
     MASALA_OT_Exporter,
-    MASALA_OT_PreferenceTest,
     MASALA_OT_Reload,
     MASALA_OT_Sandbox,
 )
@@ -21,15 +20,13 @@ bl_info = {
     "category": "Generic",
 }
 
-_classes = (
+_classes = [
     MASALA_PT_mainPanel,
     MASALA_OT_Exporter,
     MasalaPreferences,
-    MASALA_OT_PreferenceTest,
-    MASALA_OT_Reload,
     MASALA_OT_Assembler,
+    MASALA_OT_Reload,
     MASALA_OT_Sandbox,
-)
-
+]
 
 register, unregister = bpy.utils.register_classes_factory(classes=_classes)
