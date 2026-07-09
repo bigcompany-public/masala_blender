@@ -34,6 +34,8 @@ def update_wheels_in_manifest():
     # Get wheels relative paths
     wheels = []
     for wheel in wheels_dir.iterdir():
+        if wheel.suffix != ".whl":
+            continue
         relative_path = wheel.as_posix().replace(extension_dir.as_posix(), ".")
         wheels.append(relative_path)
 
@@ -42,7 +44,7 @@ def update_wheels_in_manifest():
     pattern = re.compile(r"^wheels = (.|\n)+?\]", re.MULTILINE)
     new_wheels_text = "wheels = [\n"
     for wheel in wheels:
-        new_wheels_text += f"  {wheel},\n"
+        new_wheels_text += f'  "{wheel}",\n'
     new_wheels_text += "]"
     new_content = re.sub(pattern, new_wheels_text, content)
     manifest_path.write_text(new_content)
